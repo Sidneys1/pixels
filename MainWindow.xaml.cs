@@ -29,7 +29,7 @@ namespace pixels
 
         readonly Raytracer Rt = new(WIDTH, HEIGHT);
 
-        public static RoutedCommand MyCommand = new();
+        public static RoutedCommand SaveCommand = new(), IncreaseFocalLengthCommand = new(), DecreaseFocalLengthCommand = new(), ForwardCommand = new(), BackCommand = new();
 
         public MainWindow()
         {
@@ -37,23 +37,33 @@ namespace pixels
 
             Rt.Scene.Ambient = Colors.Gray;
             Rt.Scene.Fog = Colors.Gray;
-            Rt.Scene.FogIntensity = 0.0005;
-            Rt.Samples = 1;
+            Rt.Scene.FogIntensity = 0.0002;
+            // Rt.Samples = 1;
             Rt.Bounces = 10;
+            // Rt.Bounces = 0;
+
+            // Rt.Scene.Shapes.Add(new Sphere(new Point3D(+050, -050, +25), 5, Colors.Red) { Reflectivity = 0 });
+
             // Rt.Scene.Shapes.Add(new Sphere(new Point3D(100, 100, 2000), 250, Colors.LimeGreen) { Reflectivity = 1.0 });
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(250 - 250, 250 - 250, 200), 100, Colors.Silver) { Reflectivity = 0.9 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +000, +200), 100, Colors.Silver) { Reflectivity = 0.9 });
             // Rt.Scene.Shapes.Add(new Sphere(new Point3D(0, 0, 100), 25, Colors.Magenta) { Reflectivity = 0.9 });
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(100 - 250, 250 - 250, 400), 100, Colors.Yellow) { Reflectivity = 0.75 });
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(400 - 250, 250 - 250, 400), 100, Colors.Purple) { Reflectivity = 0.75 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +000, +400), 100, Colors.Yellow) { Reflectivity = 0.75 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +000, +400), 100, Colors.Purple) { Reflectivity = 0.25 });
 
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(100 - 250, 100 - 250, 50), 50, Colors.Red) { Reflectivity = 0.5});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(250 - 250, 100 - 250, 100), 50, Colors.Green) { Reflectivity = 0.5});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(400 - 250, 100 - 250, 250), 50, Colors.Blue) { Reflectivity = 0.5});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(100 - 250, 400 - 250, 400), 50, Colors.Blue) { Reflectivity = 0.25});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(250 - 250, 400 - 250, 550), 50, Colors.Green) { Reflectivity = 0.25});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(400 - 250, 400 - 250, 700), 50, Colors.Red) { Reflectivity = 0.5});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, -150, +050), 50, Colors.Red) { Reflectivity = 0.9});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, -150, +100), 50, Colors.Green) { Reflectivity = 0.75});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, -150, +250), 50, Colors.Blue) { Reflectivity = 0.5});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +400), 50, Colors.Blue) { Reflectivity = 0.25});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +150, +550), 50, Colors.Green) { Reflectivity = 0.1});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +700), 50, Colors.Red) { Reflectivity = 0});
 
-            MyCommand.InputGestures.Add(new KeyGesture(Key.S, ModifierKeys.Control));
+            Rt.Scene.Shapes.Add(new Plane(new Point3D(0, +200, 0), new Point3D(0, -1, 0), Colors.LightGray));
+
+            SaveCommand.InputGestures.Add(new KeyGesture(Key.S, ModifierKeys.Control));
+            IncreaseFocalLengthCommand.InputGestures.Add(new KeyGesture(Key.I, ModifierKeys.Control));
+            DecreaseFocalLengthCommand.InputGestures.Add(new KeyGesture(Key.K, ModifierKeys.Control));
+            ForwardCommand.InputGestures.Add(new KeyGesture(Key.Up));
+            BackCommand.InputGestures.Add(new KeyGesture(Key.Down));
             Closed += On_Closed;
             InitializeComponent();
 
@@ -62,7 +72,7 @@ namespace pixels
             imageCtl.Source = Image;
             System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageCtl, BitmapScalingMode.NearestNeighbor);
 
-            var t = new System.Timers.Timer(10);
+            var t = new System.Timers.Timer(25);
             t.AutoReset = true;
             t.Elapsed += TimerElapsed;
             t.Start();
@@ -74,7 +84,7 @@ namespace pixels
             Rt.StartRender();
         }
 
-        private void MyCommandExecuted(object sender, ExecutedRoutedEventArgs e) {
+        private void SaveCommandExecuted(object sender, ExecutedRoutedEventArgs e) {
             if (Rt.State != RaytracerState.Rendered) return;
             FpsTimer.Stop();
             using (FileStream stream = new(".\\image.png", FileMode.Create)) {
@@ -83,6 +93,36 @@ namespace pixels
                 encoder.Save(stream);
                 Title = $"Saved to {stream.Name}";
             }
+        }
+
+        private void IncreaseFocalLengthCommandExecuted(object sender, ExecutedRoutedEventArgs e) {
+            if (Rt.State != RaytracerState.Rendered) return;
+            Rt.CameraFocalLength += 50;
+            Rt.StartRender();
+            FpsTimer.Start();
+        }
+
+        private void DecreaseFocalLengthCommandExecuted(object sender, ExecutedRoutedEventArgs e) {
+            if (Rt.State != RaytracerState.Rendered) return;
+            Rt.CameraFocalLength -= 50;
+            Rt.StartRender();
+            FpsTimer.Start();
+        }
+
+        private void ForwardCommandExecuted(object sender, ExecutedRoutedEventArgs e) {
+            if (Rt.State != RaytracerState.Rendered) return;
+
+            Rt.CameraOrigin.Z += 50;
+            Rt.StartRender();
+            FpsTimer.Start();
+        }
+
+        private void BackCommandExecuted(object sender, ExecutedRoutedEventArgs e) {
+            if (Rt.State != RaytracerState.Rendered) return;
+
+            Rt.CameraOrigin.Z -= 50;
+            Rt.StartRender();
+            FpsTimer.Start();
         }
 
         void On_Closed(Object? o, EventArgs e) => Rt.StopRender();
@@ -102,12 +142,14 @@ namespace pixels
 
         private void FpsTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
         {
+            string title = $"SRT - Camera(O:{Rt.CameraOrigin}, FL:{Rt.CameraFocalLength}) - {Rt.RayCount:N0} Rays";
             if (Rt.State == RaytracerState.Rendered) {
                 FpsTimer.Stop();
-                return;
-            }
+                title += $" - Done";
+            } else 
+                title += $" - {Rt.State} - {frames * 4} fps";
             this.Dispatcher.BeginInvoke(() => {
-                this.Title = $"SRT - {frames * 4} fps - {Rt.State}";
+                this.Title = title;
                 frames = 0;
             });
         }

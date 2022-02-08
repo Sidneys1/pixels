@@ -42,7 +42,7 @@ namespace srt
             return (discriminant > 1e-7) ? 2 : 1;
         }
 
-        double? hit_sphere(Ray r) {
+        public override double? Intersection(Ray r) {
             double radius = this.Radius;
             Point3D oc = r.Origin - this.Origin;
 
@@ -57,28 +57,6 @@ namespace srt
             return (-b - Math.Sqrt(discriminant)) / (2.0 * a);
         }
 
-        public override double? Intersection(Ray ray) {
-            // double one, two;
-            // int count = Intersect(ray, out one, out two);
-            // // double distance;
-            // switch (count) {
-            //     case 1:
-            //         return one;
-            //     case 2:
-            //         return Math.Min(one, two);
-            //     default: return null;
-            // }
-            return hit_sphere(ray);
-            // return ray.Origin + (ray.Direction * distance);
-            // return count != 0;
-
-
-            // Point3D oc = ray.Origin - Origin;
-            // double a = ray.Direction * ray.Direction;
-            // double b = 2.0 * (oc * ray.Direction);
-            // double c = (oc * oc) - Radius * Radius;
-            // double discriminant = b*b - 4*a*c;
-            // return discriminant > 0;
-        }
+        public override Ray Normal(Point3D intersection) => new Ray(intersection, intersection - Origin);
     }
 }

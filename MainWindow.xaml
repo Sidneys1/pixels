@@ -7,7 +7,11 @@
         mc:Ignorable="d" 
         Title="SRT"  Height="100" Width="100" DataContext="{Binding RelativeSource={RelativeSource Self}}" ResizeMode="NoResize" SizeToContent="WidthAndHeight">
     <Window.CommandBindings>
-        <CommandBinding Command="{x:Static local:MainWindow.MyCommand}" Executed="MyCommandExecuted"/>
+        <CommandBinding Command="{x:Static local:MainWindow.SaveCommand}" Executed="SaveCommandExecuted"/>
+        <CommandBinding Command="{x:Static local:MainWindow.IncreaseFocalLengthCommand}" Executed="IncreaseFocalLengthCommandExecuted"/>
+        <CommandBinding Command="{x:Static local:MainWindow.DecreaseFocalLengthCommand}" Executed="DecreaseFocalLengthCommandExecuted"/>
+        <CommandBinding Command="{x:Static local:MainWindow.ForwardCommand}" Executed="ForwardCommandExecuted"/>
+        <CommandBinding Command="{x:Static local:MainWindow.BackCommand}" Executed="BackCommandExecuted"/>
     </Window.CommandBindings>
     <Grid>
         <!-- Image display. -->

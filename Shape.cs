@@ -13,6 +13,8 @@ namespace srt {
             Fill = fill;
         }
 
+        public abstract Ray Normal(Point3D intersection);
+
         public abstract Color Sample(Ray ray);
         public abstract double? Intersection(Ray ray);
 
