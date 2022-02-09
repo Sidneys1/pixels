@@ -57,6 +57,6 @@ namespace srt
             return (-b - Math.Sqrt(discriminant)) / (2.0 * a);
         }
 
-        public override Ray Normal(Point3D intersection) => new Ray(intersection, intersection - Origin);
+        public override Ray Normal(Point3D intersection) => new Ray(intersection, intersection - Origin).Normalize();
     }
 }

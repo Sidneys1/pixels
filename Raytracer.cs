@@ -22,7 +22,7 @@ namespace srt {
 
         public int Samples { get; set; } = 16;
         public int Chunks { get; set; } = 10;
-        public int Bounces { get; set; } = 1;
+        public int Bounces { get; set; } = 4;
         public bool ReflectsFog { get; set; } = true;
         public long RayCount { get; private set; } = 0;
 
@@ -39,6 +39,26 @@ namespace srt {
         double CameraFov { get; set; } = 90;
 
         public Raytracer(int width, int height) => Backbuffer = new(width, height);
+
+        double FresnelReflectAmount(double n1, double n2, Point3D normal, Point3D incident, double reflectivity) {
+            double r0 = (n1 - n2) / (n1 + n2);
+            r0 *= r0;
+
+            double cosX = (normal * incident);
+            if (n1 > n2) {
+                double n = n1 / n2;
+                double sinT2 = n * n * (1.0 - cosX * cosX);
+                // Total internal reflection
+                if (sinT2 > 1) return 1.0;
+                cosX = Math.Sqrt(1.0 - sinT2);
+            }
+            double x = 1.0 - cosX;
+            double ret = r0 + (1.0 - r0) * x * x * x * x * x;
+
+            // Adjust based on reflectance
+            ret = (reflectivity + (1.0 - reflectivity) * ret);
+            return ret;
+        }
 
         private Color? SampleRay(Ray r, int depth, Shape? ignore = null) {
             RayCount++;
@@ -58,6 +78,7 @@ namespace srt {
 
             Color final_color;
 
+            double dot;
             if (--depth == 0 || originObject.Reflectivity == 0) {
                 var amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
                 col1 = col1.Lerp(this.Scene.Fog, amountOfFog);
@@ -66,21 +87,16 @@ namespace srt {
                 var reflection = normal;
                 reflection.Direction = normal.Direction * (2.0 * (-r.Direction * normal.Direction)) + r.Direction;
 
-                var col2 = SampleRay(reflection, depth, intersection.Item1);
-                if (col2 == null) {
+                var reflectedColor = SampleRay(reflection, depth, intersection.Item1);
+                if (reflectedColor == null) {
                     if (this.ReflectsFog) {
                         var amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
                         col1 = col1.Lerp(this.Scene.Fog, originObject.Reflectivity);
                     }
                     final_color = col1;
                 } else {
-                    var amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
-                    // var col3 = col2.Value.Lerp(this.Scene.Fog, amountOfFog);
-                    var col3 = col2.Value;
-                    col3 = col1.Lerp(col3, originObject.Reflectivity);
-                    amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
-                    col3 = col3.Lerp(this.Scene.Fog, amountOfFog);
-                    final_color = col3;
+                    double by = FresnelReflectAmount(1, 1, normal.Direction, reflection.Direction, originObject.Reflectivity);
+                    final_color = col1.Lerp(reflectedColor.Value, by);
                 }
             }
 
@@ -98,7 +114,10 @@ namespace srt {
 
             if (lightOccluded) return final_color.Lerp(Colors.Black, 1 - this.Scene.AmbientLight);
 
-            return final_color;
+            dot = Math.Min(Scene.AmbientLight + (lightRay.Direction * normal.Direction), 1.0);
+            return Color.FromRgb((byte)(final_color.R * dot), (byte)(final_color.G * dot), (byte)(final_color.B * dot));
+
+            // return final_color;
         }
 
         public Color Sample(double x, double y) {

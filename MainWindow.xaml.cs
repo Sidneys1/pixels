@@ -37,15 +37,15 @@ namespace pixels
 
             Rt.Scene.Ambient = Colors.Gray;
             Rt.Scene.Fog = Colors.Gray;
-            Rt.Scene.FogIntensity = 0.0002;
+            Rt.Scene.FogIntensity = 0;//.0002;
             // Rt.Samples = 1;
-            Rt.Bounces = 10;
+            // Rt.Bounces = 2;
             // Rt.Bounces = 0;
 
             // Rt.Scene.Shapes.Add(new Sphere(new Point3D(+050, -050, +25), 5, Colors.Red) { Reflectivity = 0 });
 
             // Rt.Scene.Shapes.Add(new Sphere(new Point3D(100, 100, 2000), 250, Colors.LimeGreen) { Reflectivity = 1.0 });
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +000, +200), 100, Colors.Silver) { Reflectivity = 0.9 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +000, +200), 100, Colors.Silver) { Reflectivity = 0.1 });
             // Rt.Scene.Shapes.Add(new Sphere(new Point3D(0, 0, 100), 25, Colors.Magenta) { Reflectivity = 0.9 });
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +000, +400), 100, Colors.Yellow) { Reflectivity = 0.75 });
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +000, +400), 100, Colors.Purple) { Reflectivity = 0.25 });
@@ -56,6 +56,7 @@ namespace pixels
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +400), 50, Colors.Blue) { Reflectivity = 0.25});
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +150, +550), 50, Colors.Green) { Reflectivity = 0.1});
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +700), 50, Colors.Red) { Reflectivity = 0});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +050), 50, Colors.Red) { Reflectivity = 0});
 
             Rt.Scene.Shapes.Add(new Plane(new Point3D(0, +200, 0), new Point3D(0, -1, 0), Colors.LightGray));
 
