@@ -22,8 +22,8 @@ namespace pixels
         public WriteableBitmap Image;
 
         const int SCALE = 1;
-        const int WIDTH = 1000;
-        const int HEIGHT = 1000;
+        const int WIDTH = 750;
+        const int HEIGHT = 750;
 
         volatile int frames = 0;
 
@@ -37,16 +37,11 @@ namespace pixels
 
             Rt.Scene.Ambient = Colors.Gray;
             Rt.Scene.Fog = Colors.Gray;
-            Rt.Scene.FogIntensity = 0;//.0002;
+            Rt.Scene.FogIntensity = 0.0001;
             // Rt.Samples = 1;
             // Rt.Bounces = 2;
-            // Rt.Bounces = 0;
 
-            // Rt.Scene.Shapes.Add(new Sphere(new Point3D(+050, -050, +25), 5, Colors.Red) { Reflectivity = 0 });
-
-            // Rt.Scene.Shapes.Add(new Sphere(new Point3D(100, 100, 2000), 250, Colors.LimeGreen) { Reflectivity = 1.0 });
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +000, +200), 100, Colors.Silver) { Reflectivity = 0.1 });
-            // Rt.Scene.Shapes.Add(new Sphere(new Point3D(0, 0, 100), 25, Colors.Magenta) { Reflectivity = 0.9 });
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +000, +400), 100, Colors.Yellow) { Reflectivity = 0.75 });
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +000, +400), 100, Colors.Purple) { Reflectivity = 0.25 });
 
@@ -56,7 +51,10 @@ namespace pixels
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +400), 50, Colors.Blue) { Reflectivity = 0.25});
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +150, +550), 50, Colors.Green) { Reflectivity = 0.1});
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +700), 50, Colors.Red) { Reflectivity = 0});
+
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +050), 50, Colors.Red) { Reflectivity = 0});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +050), 50, Colors.Black) { Reflectivity = 0, Refract = true, RefractiveCoefficient = 1.5});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-000, +150, +050), 50, Colors.Black) { Reflectivity = 0, Refract = true, RefractiveCoefficient = 1.001});
 
             Rt.Scene.Shapes.Add(new Plane(new Point3D(0, +200, 0), new Point3D(0, -1, 0), Colors.LightGray));
 
@@ -167,20 +165,20 @@ namespace pixels
             var pos = e.GetPosition(imageCtl);
             pos.X /= SCALE;
             pos.Y /= SCALE;
-            Shape? closest = null;
-            double closestIntersection = double.MaxValue;
-            Ray ray = new(pos.X, pos.Y, 0, 0, 0, 1);
-            foreach (var shape in Rt.Scene.Shapes) {
-                var intersection = shape.Intersection(ray);
-                if (intersection == null || intersection > closestIntersection) continue;
-                closest = shape;
-                closestIntersection = intersection.Value;
-            }
-            if (closest == null) {
-                Title = "No Hit";
-                return;
-            }
-            Title = $"{pos}: {closest} ({closestIntersection})";
+            // Shape? closest = null;
+            // double closestIntersection = double.MaxValue;
+            Ray ray = new(pos.X - Rt.Backbuffer.Width / 2.0, pos.Y - Rt.Backbuffer.Height / 2.0, 0, 0, 0, 1);
+            // foreach (var shape in Rt.Scene.Shapes) {
+            //     var intersection = shape.Intersection(ray);
+            //     if (intersection == null || intersection > closestIntersection) continue;
+            //     closest = shape;
+            //     closestIntersection = intersection.Value;
+            // }
+            // if (closest == null) {
+            //     Title = "No Hit";
+            //     return;
+            // }
+            Title = $"{ray.Origin}";
 
             Rt.Debug(ray);
         }

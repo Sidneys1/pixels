@@ -20,7 +20,7 @@ namespace srt
             Direction.Z = dz;
         }
 
-        public Ray Normalize() => new Ray(Origin, Direction / Math.Sqrt(Direction * Direction));
+        public Ray Normalize() => new Ray(Origin, Direction.Normalize());
 
         public static Ray operator *(Ray ray, double magnitude) => new Ray(ray.Origin, ray.Direction * magnitude);
 

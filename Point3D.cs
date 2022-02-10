@@ -12,5 +12,7 @@ namespace srt
         public static Point3D operator /(Point3D l, double r) => new Point3D(l.X / r, l.Y / r, l.Z / r);
 
         public override string ToString() => $"{X},{Y},{Z}";
+
+        public Point3D Normalize() => this / System.Math.Sqrt(this * this);
     }
 }

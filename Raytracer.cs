@@ -34,13 +34,12 @@ namespace srt {
 
 
         // CAMERA
-        public Point3D CameraOrigin = new(0, 0, -800); //-750
+        public Point3D CameraOrigin = new(0, 0, -800);
         public double CameraFocalLength { get; set; } = 200;
-        double CameraFov { get; set; } = 90;
 
         public Raytracer(int width, int height) => Backbuffer = new(width, height);
 
-        double FresnelReflectAmount(double n1, double n2, Point3D normal, Point3D incident, double reflectivity) {
+        public static double FresnelReflectAmount(double n1, double n2, Point3D normal, Point3D incident, double reflectivity) {
             double r0 = (n1 - n2) / (n1 + n2);
             r0 *= r0;
 
@@ -60,8 +59,35 @@ namespace srt {
             return ret;
         }
 
+        public static Point3D Refract(Point3D incident, Point3D normal, double n1, double n2) {
+            double n = n1 / n2;
+            double cosI = (normal * incident);
+            double sinT2 = n * n * (1.0 - cosI * cosI);
+            if (sinT2 > 1.0) return new Point3D();
+            double cosT = Math.Sqrt(1.0 - sinT2);
+            return incident * n + normal * (n * cosI - cosT);
+        }
+
+        // public static Point3D Refract(Point3D I, Point3D N, double ior) {
+        //     double cosi = Math.Clamp((I * N), -1, 1);
+        //     double etai = 1, etat = ior;
+        //     Point3D n = N;
+        //     if (cosi < 0) { 
+        //         cosi = -cosi; 
+        //     } else {
+        //         var x = etai;
+        //         etai = etat;
+        //         etat = x;
+        //         n = -N;
+        //     }
+        //     double eta = etai / etat;
+        //     double k = 1 - eta * eta * (1 - cosi * cosi);
+        //     return k < 0 ? new() : (I * eta) + (n * (eta * cosi - Math.Sqrt(k)));
+        // }
+
         private Color? SampleRay(Ray r, int depth, Shape? ignore = null) {
             RayCount++;
+            depth--;
 
             var intersection = this.Scene.Shapes
                 .Where(s => s != ignore)
@@ -71,26 +97,27 @@ namespace srt {
                 .FirstOrDefault();
             if (intersection == null) return this.Scene.FogIntensity > 0 ? this.Scene.Fog : this.Scene.Ambient;
             var originObject = intersection.Item1;
-            var col1 = intersection.Item1.Sample(r);
             var intersectionRay = r * intersection.Item2;
             var IntersectionPoint = intersectionRay.End;
             var normal = intersection.Item1.Normal(IntersectionPoint);// new Ray(IntersectionPoint, IntersectionPoint - intersection.Item1.Origin).Normalize();
 
+            Color col1;
+            if (originObject.Refract && depth != 0) {
+                var refractedRay = originObject.RefractRay(r, IntersectionPoint, normal);
+                if (refractedRay == null) col1 = Colors.Magenta;//originObject.Sample(r);
+                else col1 = SampleRay(refractedRay.Value, depth + 1, originObject) ?? this.Scene.Ambient;
+            } else col1 = originObject.Sample(r);
+
             Color final_color;
 
             double dot;
-            if (--depth == 0 || originObject.Reflectivity == 0) {
-                var amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
-                col1 = col1.Lerp(this.Scene.Fog, amountOfFog);
-                final_color = col1;
-            } else {
+            if (depth != 0 && originObject.Reflectivity != 0) {
                 var reflection = normal;
                 reflection.Direction = normal.Direction * (2.0 * (-r.Direction * normal.Direction)) + r.Direction;
 
-                var reflectedColor = SampleRay(reflection, depth, intersection.Item1);
+                var reflectedColor = SampleRay(reflection, depth, originObject);
                 if (reflectedColor == null) {
                     if (this.ReflectsFog) {
-                        var amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
                         col1 = col1.Lerp(this.Scene.Fog, originObject.Reflectivity);
                     }
                     final_color = col1;
@@ -98,7 +125,8 @@ namespace srt {
                     double by = FresnelReflectAmount(1, 1, normal.Direction, reflection.Direction, originObject.Reflectivity);
                     final_color = col1.Lerp(reflectedColor.Value, by);
                 }
-            }
+            } else
+                final_color = col1;
 
             // Create a ray from here to the light
             var lightPoint = new Point3D(+050, -1000, -1000);
@@ -108,20 +136,24 @@ namespace srt {
             var lightDistance = lightRay.Length;
             lightRay = lightRay.Normalize();
             bool lightOccluded = this.Scene.Shapes
-                .Select(s => Tuple.Create(s, s.Intersection(lightRay)))
-                .Where(t => t.Item2 != null && t.Item2.Value > 0 && t.Item2.Value < lightDistance)
+                .Select(s => s.Intersection(lightRay))
+                .Where(t => t != null && t.Value > 0 && t.Value < lightDistance)
                 .Any();
 
-            if (lightOccluded) return final_color.Lerp(Colors.Black, 1 - this.Scene.AmbientLight);
+            if (!lightOccluded) {
+                dot = Math.Min(Scene.AmbientLight + (lightRay.Direction * normal.Direction), 1.0);
+                final_color = Color.FromRgb((byte)(final_color.R * dot), (byte)(final_color.G * dot), (byte)(final_color.B * dot));
+            } else
+                final_color = final_color.Lerp(Colors.Black, 1 - this.Scene.AmbientLight);
 
-            dot = Math.Min(Scene.AmbientLight + (lightRay.Direction * normal.Direction), 1.0);
-            return Color.FromRgb((byte)(final_color.R * dot), (byte)(final_color.G * dot), (byte)(final_color.B * dot));
-
-            // return final_color;
+            // Apply fog to *this ray*
+            var amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
+            return final_color.Lerp(this.Scene.Fog, amountOfFog);
         }
 
         public Color Sample(double x, double y) {
             var r = new Ray(CameraOrigin, new((x / Backbuffer.Width) * 100, (y / Backbuffer.Height) * 100, CameraFocalLength)).Normalize();
+            // var r = new Ray(x, y, 0, 0, 0, 1);
             return SampleRay(r, Bounces + 1) ?? this.Scene.Ambient;
         }
 
@@ -134,7 +166,7 @@ namespace srt {
             }
             Color[] colors = new Color[Samples];
             for (int i = 0; i < Samples; i++)
-                colors[i] = Sample(x +  Random.NextDouble() - halfX, y + Random.NextDouble() - halfY);
+                colors[i] = Sample(x + Random.NextDouble() - halfX, y + Random.NextDouble() - halfY);
             this.Backbuffer.SetPixel(x, y, Color.FromRgb((byte)colors.Average(c => c.R), (byte)colors.Average(c => c.G), (byte)colors.Average(c => c.B)));
         }
 
@@ -204,6 +236,42 @@ namespace srt {
         }
 
         internal void Debug(Ray ray) {
+            // ray.Origin.Z = Scene.Shapes[0].Origin.Z;
+            // ray.Direction = new(1, 0, 0);
+
+            // var intersection = Scene.Shapes[0].Intersection(ray);
+            // if (intersection == null) {
+            //     Trace.WriteLine("No hit");
+            //     return;
+            // }
+            // var screenSpace = ray;
+            // screenSpace *= intersection.Value;
+            // screenSpace.Origin += new Point3D(Backbuffer.Width / 2.0, Backbuffer.Height / 2.0, 100);
+            // var ssEnd = screenSpace.End;
+            // Backbuffer.DrawLine((int)screenSpace.Origin.X, (int)screenSpace.Origin.Y, (int)ssEnd.X, (int)ssEnd.Y, Colors.Red);
+
+            // Ray internalRay; double mix;
+            // Ray? exitRay = Scene.Shapes[0].RefractRay(ray, (ray * intersection.Value).End, Scene.Shapes[0].Normal(ray.End), out internalRay, out mix);
+            // if (exitRay == null) {
+            //     Trace.WriteLine("Wha");
+            //     return;
+            // }
+
+
+            // screenSpace = internalRay;
+            // screenSpace.Origin += new Point3D(Backbuffer.Width / 2.0, Backbuffer.Height / 2.0, 100);
+            // ssEnd = screenSpace.End;
+            // Trace.WriteLine(internalRay.Length);
+            // Backbuffer.DrawLine((int)screenSpace.Origin.X, (int)screenSpace.Origin.Y, (int)ssEnd.X, (int)ssEnd.Y, Colors.Yellow);
+
+            // screenSpace = exitRay.Value;
+            // screenSpace *= 100;
+            // screenSpace.Origin += new Point3D(Backbuffer.Width / 2.0, Backbuffer.Height / 2.0, 100);
+            // ssEnd = screenSpace.End;
+            // Trace.WriteLine(internalRay.Length);
+            // Backbuffer.DrawLine((int)screenSpace.Origin.X, (int)screenSpace.Origin.Y, (int)ssEnd.X, (int)ssEnd.Y, Colors.SkyBlue);
+            
+
             // // Backbuffer.SetPixel((int)ray.Origin.X, (int)ray.Origin.Y, 255, 255, 255);
 
             // var intersection = this.Scene.Shapes
