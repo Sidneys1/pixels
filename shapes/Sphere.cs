@@ -1,28 +1,17 @@
 #define TRACE
 
 using System;
-using System.Windows.Media;
+// using System.Windows.Media;
 
-namespace srt
-{
+namespace srt {
+    using Color3 = Point3D;
     public class Sphere : Shape {
-        public double Radius {get;set;}
-        public Sphere(Point3D origin, double radius, Color normal) : base(origin, normal) {
-            Radius = radius;
-        }
+        public double Radius { get; set; }
+        public Sphere(Point3D origin, double radius, Color3 normal) : base(origin, normal) => Radius = radius;
 
-        double GetDistance(double x1, double y1, double x2, double y2) 
-        {
-            var x = (x1 - x2);
-            x = x * x;
-            var y = (y1 - y2);
-            y = y * y;
-            return Math.Sqrt(x + y);
-        }
+        double GetDistance(double x1, double y1, double x2, double y2) => Math.Sqrt(Math.Pow(x1 - x2, 2) + Math.Pow(y1 - y2, 2));
 
-        public override Color Sample(Ray ray){
-            return Fill;
-        }
+        public override Color3 Sample(Ray ray) => Fill;
 
         private int Intersect(Ray ray, out double one, out double two) {
             var o_minus_c = ray.Origin - Origin;
@@ -30,8 +19,7 @@ namespace srt
             double q = (o_minus_c * o_minus_c) - (Radius * Radius);
             double discriminant = (p * p) - q;
             if (discriminant < 0) {
-                one = 0;
-                two = 0;
+                one = two = 0;
                 return 0;
             }
 
@@ -53,7 +41,7 @@ namespace srt
 
             if (discriminant < 0)
                 return null;
-            
+
             return (-b - Math.Sqrt(discriminant)) / (2.0 * a);
         }
 

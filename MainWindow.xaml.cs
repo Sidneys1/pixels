@@ -8,14 +8,12 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using srt;
 
-namespace pixels
-{
+namespace pixels {
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
-    {
+    public partial class MainWindow : Window {
         private Int32Rect Area = new(0, 0, WIDTH, HEIGHT);
         private readonly System.Timers.Timer FpsTimer = new(250);
 
@@ -31,30 +29,30 @@ namespace pixels
 
         public static RoutedCommand SaveCommand = new(), IncreaseFocalLengthCommand = new(), DecreaseFocalLengthCommand = new(), ForwardCommand = new(), BackCommand = new();
 
-        public MainWindow()
-        {
+        public MainWindow() {
             Image = new(WIDTH, HEIGHT, 96, 96, PixelFormats.Rgb24, null);
 
             Rt.Scene.Ambient = Colors.Gray;
             Rt.Scene.Fog = Colors.Gray;
             Rt.Scene.FogIntensity = 0.0001;
             // Rt.Samples = 1;
+            // Rt.Samples = 4;
             // Rt.Bounces = 2;
 
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +000, +200), 100, Colors.Silver) { Reflectivity = 0.1 });
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +000, +400), 100, Colors.Yellow) { Reflectivity = 0.75 });
             Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +000, +400), 100, Colors.Purple) { Reflectivity = 0.25 });
 
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, -150, +050), 50, Colors.Red) { Reflectivity = 0.9});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, -150, +100), 50, Colors.Green) { Reflectivity = 0.75});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, -150, +250), 50, Colors.Blue) { Reflectivity = 0.5});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +400), 50, Colors.Blue) { Reflectivity = 0.25});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +150, +550), 50, Colors.Green) { Reflectivity = 0.1});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +700), 50, Colors.Red) { Reflectivity = 0});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, -150, +050), 50, Colors.Red) { Reflectivity = 0.9 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, -150, +100), 50, Colors.Green) { Reflectivity = 0.75 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, -150, +250), 50, Colors.Blue) { Reflectivity = 0.5 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +400), 50, Colors.Blue) { Reflectivity = 0.25 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+000, +150, +550), 50, Colors.Green) { Reflectivity = 0.1 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +700), 50, Colors.Red) { Reflectivity = 0 });
 
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +050), 50, Colors.Red) { Reflectivity = 0});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +050), 50, Colors.Black) { Reflectivity = 0, Refract = true, RefractiveCoefficient = 1.5});
-            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-000, +150, +050), 50, Colors.Black) { Reflectivity = 0, Refract = true, RefractiveCoefficient = 1.001});
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(+150, +150, +050), 50, Colors.Red) { Reflectivity = 0 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-150, +150, +050), 50, Colors.Black) { Reflectivity = 0.1, Refract = true, RefractiveCoefficient = 1.5 });
+            Rt.Scene.Shapes.Add(new Sphere(new Point3D(-000, +150, +050), 50, Colors.Black) { Reflectivity = 0.1, Refract = true, RefractiveCoefficient = 1.01 });
 
             Rt.Scene.Shapes.Add(new Plane(new Point3D(0, +200, 0), new Point3D(0, -1, 0), Colors.LightGray));
 
@@ -126,26 +124,23 @@ namespace pixels
 
         void On_Closed(Object? o, EventArgs e) => Rt.StopRender();
 
-        double GetDistance(double x1, double y1, double x2, double y2) 
-        {
+        double GetDistance(double x1, double y1, double x2, double y2) {
             var x = (x1 - x2);
             var y = (y1 - y2);
             return Math.Sqrt((x * x) + (y * y));
         }
-    
-        private void TimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
-        {
+
+        private void TimerElapsed(object? sender, System.Timers.ElapsedEventArgs e) {
             if (Rt.Backbuffer.Dirty)
                 Image.Dispatcher.Invoke(DispatchElapsed);
         }
 
-        private void FpsTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
-        {
+        private void FpsTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e) {
             string title = $"SRT - Camera(O:{Rt.CameraOrigin}, FL:{Rt.CameraFocalLength}) - {Rt.RayCount:N0} Rays";
             if (Rt.State == RaytracerState.Rendered) {
                 FpsTimer.Stop();
                 title += $" - Done";
-            } else 
+            } else
                 title += $" - {Rt.State} - {frames * 4} fps";
             this.Dispatcher.BeginInvoke(() => {
                 this.Title = title;
@@ -158,8 +153,7 @@ namespace pixels
             frames++;
         }
 
-        private void Image_MouseLeftButtonDown(object sender, MouseEventArgs e)
-        {
+        private void Image_MouseLeftButtonDown(object sender, MouseEventArgs e) {
             if (Rt.State != RaytracerState.Rendered) return;
             FpsTimer.Stop();
             var pos = e.GetPosition(imageCtl);

@@ -1,7 +1,6 @@
 using System;
 
-namespace srt
-{
+namespace srt {
     public struct Ray {
         public Point3D Origin;
         public Point3D Direction;
@@ -24,8 +23,8 @@ namespace srt
 
         public static Ray operator *(Ray ray, double magnitude) => new Ray(ray.Origin, ray.Direction * magnitude);
 
-        public Point3D End {get => Origin + Direction;}
-        public double Length {get => Math.Sqrt((Direction.X * Direction.X) + (Direction.Y * Direction.Y) + (Direction.Z * Direction.Z));}
+        public Point3D End { get => Origin + Direction; }
+        public double Length { get => Direction.Length; }
 
         public override string ToString() => $"Ray({Origin} , {Direction})";
     }

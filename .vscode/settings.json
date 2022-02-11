@@ -15,5 +15,6 @@
     "files.exclude": {
         "bin/": true,
         "obj/": true
-    }
+    },
+    "editor.formatOnSave": true
 }

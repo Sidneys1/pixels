@@ -1,12 +1,10 @@
 #define TRACE
 
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using srt;
 
-namespace pixels
-{
+namespace pixels {
     internal static class Extensions {
         public static void CopyToBitmap(this Backbuffer backbuffer, WriteableBitmap bmp, Int32Rect sourceRect) {
             bmp.Lock();

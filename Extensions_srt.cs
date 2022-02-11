@@ -2,8 +2,7 @@
 
 using System.Windows.Media;
 
-namespace srt
-{
+namespace srt {
     internal static class Extensions {
         /// <summary>
         /// Linear interpolation of two values.
@@ -12,7 +11,7 @@ namespace srt
         /// <param name="second">Value represented by 1.0</param>
         /// <param name="by">Interpolation value between 0.0 and 1.0</param>
         /// <returns>A new value.</returns>
-        static double Lerp(double first, double second, double by) => first * (1 - by) + second * by;
+        public static double Lerp(double first, double second, double by) => first * (1 - by) + second * by;
 
         /// <summary>
         /// Linear interpolation of two colors.

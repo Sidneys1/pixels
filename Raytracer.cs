@@ -1,13 +1,14 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Windows.Media;
+// using System.Windows.Media;
 using System.Threading;
 using System.Windows;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace srt {
+    using Color3 = Point3D;
     public enum RaytracerState {
         Unrendered,
         Rendering,
@@ -21,6 +22,7 @@ namespace srt {
         private ConcurrentBag<Int32Rect> _jobs { get; } = new();
 
         public int Samples { get; set; } = 16;
+        public int LightSamples { get; set; } = 16;
         public int Chunks { get; set; } = 10;
         public int Bounces { get; set; } = 4;
         public bool ReflectsFog { get; set; } = true;
@@ -57,35 +59,40 @@ namespace srt {
             // Adjust based on reflectance
             ret = (reflectivity + (1.0 - reflectivity) * ret);
             return ret;
+
+            // double R_0 = Math.Pow((n1 - n2) / (n1 + n2), 2);
+            // double dot = -(normal * -incident);
+            // double R = R_0 + (1 - R_0) * Math.Pow(1 - dot, 5);
+            // return R;
         }
 
-        public static Point3D Refract(Point3D incident, Point3D normal, double n1, double n2) {
-            double n = n1 / n2;
-            double cosI = (normal * incident);
-            double sinT2 = n * n * (1.0 - cosI * cosI);
-            if (sinT2 > 1.0) return new Point3D();
-            double cosT = Math.Sqrt(1.0 - sinT2);
-            return incident * n + normal * (n * cosI - cosT);
-        }
-
-        // public static Point3D Refract(Point3D I, Point3D N, double ior) {
-        //     double cosi = Math.Clamp((I * N), -1, 1);
-        //     double etai = 1, etat = ior;
-        //     Point3D n = N;
-        //     if (cosi < 0) { 
-        //         cosi = -cosi; 
-        //     } else {
-        //         var x = etai;
-        //         etai = etat;
-        //         etat = x;
-        //         n = -N;
-        //     }
-        //     double eta = etai / etat;
-        //     double k = 1 - eta * eta * (1 - cosi * cosi);
-        //     return k < 0 ? new() : (I * eta) + (n * (eta * cosi - Math.Sqrt(k)));
+        // public static Point3D Refract(Point3D incident, Point3D normal, double n1, double n2) {
+        //     double n = n1 / n2;
+        //     double cosI = (normal * incident);
+        //     double sinT2 = n * n * (1.0 - cosI * cosI);
+        //     if (sinT2 > 1.0) return new Point3D();
+        //     double cosT = Math.Sqrt(1.0 - sinT2);
+        //     return incident * n + normal * (n * cosI - cosT);
         // }
 
-        private Color? SampleRay(Ray r, int depth, Shape? ignore = null) {
+        public static Point3D? Refract(Point3D I, Point3D N, double ior) {
+            double cosi = Math.Clamp((I * N), -1, 1);
+            double etai = 1, etat = ior;
+            Point3D n = N;
+            if (cosi < 0) {
+                cosi = -cosi;
+            } else {
+                var x = etai;
+                etai = etat;
+                etat = x;
+                n = -N;
+            }
+            double eta = etai / etat;
+            double k = 1 - eta * eta * (1 - cosi * cosi);
+            return k < 0 ? null : (I * eta) + (n * (eta * cosi - Math.Sqrt(k)));
+        }
+
+        private Color3? SampleRay(Ray r, int depth, Shape? ignore = null) {
             RayCount++;
             depth--;
 
@@ -101,57 +108,63 @@ namespace srt {
             var IntersectionPoint = intersectionRay.End;
             var normal = intersection.Item1.Normal(IntersectionPoint);// new Ray(IntersectionPoint, IntersectionPoint - intersection.Item1.Origin).Normalize();
 
-            Color col1;
+            Color3 originObjectColor;
             if (originObject.Refract && depth != 0) {
                 var refractedRay = originObject.RefractRay(r, IntersectionPoint, normal);
-                if (refractedRay == null) col1 = Colors.Magenta;//originObject.Sample(r);
-                else col1 = SampleRay(refractedRay.Value, depth + 1, originObject) ?? this.Scene.Ambient;
-            } else col1 = originObject.Sample(r);
+                if (refractedRay == null) originObjectColor = System.Windows.Media.Colors.Magenta;//originObject.Sample(r);
+                else originObjectColor = SampleRay(refractedRay.Value, depth + 1, originObject) ?? this.Scene.Ambient;
+            } else
+                originObjectColor = originObject.Sample(r);
 
-            Color final_color;
+            Color3 final_color;
 
-            double dot;
             if (depth != 0 && originObject.Reflectivity != 0) {
                 var reflection = normal;
-                reflection.Direction = normal.Direction * (2.0 * (-r.Direction * normal.Direction)) + r.Direction;
+                reflection.Direction = (normal.Direction * (2.0 * (-r.Direction * normal.Direction)) + r.Direction).Normalize();
 
                 var reflectedColor = SampleRay(reflection, depth, originObject);
                 if (reflectedColor == null) {
                     if (this.ReflectsFog) {
-                        col1 = col1.Lerp(this.Scene.Fog, originObject.Reflectivity);
+                        originObjectColor = originObjectColor.Lerp(this.Scene.Fog, originObject.Reflectivity);
                     }
-                    final_color = col1;
+                    final_color = originObjectColor;
                 } else {
-                    double by = FresnelReflectAmount(1, 1, normal.Direction, reflection.Direction, originObject.Reflectivity);
-                    final_color = col1.Lerp(reflectedColor.Value, by);
+                    double by = FresnelReflectAmount(1, originObject.RefractiveCoefficient, normal.Direction, reflection.Direction, originObject.Reflectivity);
+                    final_color = originObjectColor.Lerp(reflectedColor.Value, by);
                 }
             } else
-                final_color = col1;
+                final_color = originObjectColor;
 
-            // Create a ray from here to the light
-            var lightPoint = new Point3D(+050, -1000, -1000);
-            Ray lightRay = new(IntersectionPoint, lightPoint);
+            /******* Lighting ********/
+            var lightPoint = new Point3D(+050, -500, -500);
+            var lightRadius = 100.0;
+            int occluded = 0;
+            Ray lightRay = new(IntersectionPoint, (lightPoint - IntersectionPoint).Normalize());
+            double dot = Math.Clamp(Scene.AmbientLight + (lightRay.Direction * normal.Direction), 0, 1);
             lightRay.Origin += (normal.Direction * 0.0001);
-            lightRay.Direction = lightPoint - lightRay.Origin;
-            var lightDistance = lightRay.Length;
-            lightRay = lightRay.Normalize();
-            bool lightOccluded = this.Scene.Shapes
-                .Select(s => s.Intersection(lightRay))
-                .Where(t => t != null && t.Value > 0 && t.Value < lightDistance)
-                .Any();
+            for (int i = 0; i < LightSamples; i++) {
+                RayCount++;
+                var mod = new Point3D((Random.NextDouble() - 0.5), (Random.NextDouble() - 0.5), (Random.NextDouble() - 0.5)).Normalize() * lightRadius /* * Random.NextDouble() */;
+                var pointAt = lightPoint + mod;
+                lightRay.Direction = (pointAt - lightRay.Origin);
+                var lightDistance = lightRay.Length;
+                lightRay = lightRay.Normalize();
+                bool lightOccluded = this.Scene.Shapes
+                    // .Where(s => !s.Refract)
+                    .Select(s => s.Intersection(lightRay))
+                    .Where(t => t != null && t.Value > 0 && t.Value < lightDistance)
+                    .Any();
+                if (lightOccluded) occluded++;
+            }
 
-            if (!lightOccluded) {
-                dot = Math.Min(Scene.AmbientLight + (lightRay.Direction * normal.Direction), 1.0);
-                final_color = Color.FromRgb((byte)(final_color.R * dot), (byte)(final_color.G * dot), (byte)(final_color.B * dot));
-            } else
-                final_color = final_color.Lerp(Colors.Black, 1 - this.Scene.AmbientLight);
+            final_color = final_color.Lerp(final_color * Scene.AmbientLight, occluded / (double)LightSamples) * dot;
 
             // Apply fog to *this ray*
             var amountOfFog = Math.Min(intersection.Item2 * this.Scene.FogIntensity, 1);
             return final_color.Lerp(this.Scene.Fog, amountOfFog);
         }
 
-        public Color Sample(double x, double y) {
+        public Color3 Sample(double x, double y) {
             var r = new Ray(CameraOrigin, new((x / Backbuffer.Width) * 100, (y / Backbuffer.Height) * 100, CameraFocalLength)).Normalize();
             // var r = new Ray(x, y, 0, 0, 0, 1);
             return SampleRay(r, Bounces + 1) ?? this.Scene.Ambient;
@@ -164,10 +177,11 @@ namespace srt {
                 this.Backbuffer.SetPixel(x, y, color);
                 return;
             }
-            Color[] colors = new Color[Samples];
+            Color3[] colors = new Color3[Samples];
             for (int i = 0; i < Samples; i++)
                 colors[i] = Sample(x + Random.NextDouble() - halfX, y + Random.NextDouble() - halfY);
-            this.Backbuffer.SetPixel(x, y, Color.FromRgb((byte)colors.Average(c => c.R), (byte)colors.Average(c => c.G), (byte)colors.Average(c => c.B)));
+            var averageColor = colors.Aggregate((agg, current) => agg + current) / Samples;
+            this.Backbuffer.SetPixel(x, y, averageColor);
         }
 
         public void RenderArea(Int32Rect area) {
@@ -270,7 +284,7 @@ namespace srt {
             // ssEnd = screenSpace.End;
             // Trace.WriteLine(internalRay.Length);
             // Backbuffer.DrawLine((int)screenSpace.Origin.X, (int)screenSpace.Origin.Y, (int)ssEnd.X, (int)ssEnd.Y, Colors.SkyBlue);
-            
+
 
             // // Backbuffer.SetPixel((int)ray.Origin.X, (int)ray.Origin.Y, 255, 255, 255);
 
